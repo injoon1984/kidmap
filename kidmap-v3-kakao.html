@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>아이랑 어디가지? — 무료·가성비 육아 나들이 지도</title>
+
+<!-- 카카오맵 API -->
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=63198357183755e8ca63357d0e604635&libraries=services"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --green: #2e8b6e;
+  --green-d: #1f6b53;
+  --green-pale: #e6f4ef;
+  --orange: #f07040;
+  --orange-pale: #fff0eb;
+  --yellow: #f5c542;
+  --cream: #fdf8f2;
+  --warm: #ede5d8;
+  --brown: #4a3728;
+  --gray: #8a807a;
+  --gray-light: #f2ede8;
+  --white: #ffffff;
+  --nav-h: 56px;
+  --filter-h: 44px;
+  --bottom-h: 64px;
+  --shadow: 0 2px 16px rgba(74,55,40,.10);
+  --shadow-up: 0 -4px 24px rgba(74,55,40,.12);
+  --radius: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--cream); }
+body { font-family: 'Noto Sans KR', sans-serif; color: var(--brown); -webkit-tap-highlight-color: transparent; }
+
+/* ───── TOP NAV ───── */
+.top-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--nav-h);
+  background: var(--white);
+  border-bottom: 1px solid var(--warm);
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+}
+.logo-mark {
+  font-family: 'Gaegu', cursive;
+  font-size: 20px; color: var(--green);
+  white-space: nowrap; flex-shrink: 0;
+}
+.logo-mark span { color: var(--orange); }
+
+.search-bar {
+  flex: 1; display: flex; align-items: center;
+  background: var(--gray-light); border-radius: 50px;
+  padding: 0 14px; height: 38px; gap: 6px;
+  border: 1.5px solid transparent; transition: border-color .2s, background .2s;
+}
+.search-bar:focus-within { border-color: var(--green); background: var(--white); }
+.search-bar input {
+  flex: 1; border: none; background: transparent;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px; color: var(--brown); outline: none;
+}
+.search-bar input::placeholder { color: var(--gray); }
+
+.my-loc-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--green-pale); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; transition: background .2s;
+}
+.my-loc-btn:active { background: var(--green); }
+
+/* ───── FILTER ROW ───── */
+.filter-row {
+  position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 190;
+  background: var(--white); border-bottom: 1px solid var(--warm);
+  padding: 6px 16px; display: flex; gap: 8px;
+  overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  height: var(--filter-h); align-items: center;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex-shrink: 0; border: 1.5px solid var(--warm);
+  background: var(--white); border-radius: 50px;
+  padding: 5px 13px; font-size: 12.5px;
+  font-family: 'Noto Sans KR', sans-serif; font-weight: 600;
+  color: var(--brown); cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.chip.active { background: var(--green); border-color: var(--green); color: var(--white); }
+.chip:active { transform: scale(.95); }
+
+/* ───── MAIN LAYOUT ───── */
+.main {
+  position: fixed;
+  top: calc(var(--nav-h) + var(--filter-h));
+  bottom: var(--bottom-h);
+  left: 0; right: 0;
+  display: flex; flex-direction: column;
+}
+
+/* ───── MAP PANE ───── */
+.map-pane {
+  flex: 0 0 45vh;
+  position: relative; overflow: hidden;
+}
+#kakaoMap { width: 100%; height: 100%; }
+
+/* 지도 위 컨트롤 */
+.map-controls {
+  position: absolute; right: 12px; bottom: 12px; z-index: 10;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.map-ctrl-btn {
+  width: 40px; height: 40px; background: var(--white);
+  border: none; border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.14);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; transition: transform .15s;
+}
+.map-ctrl-btn:active { transform: scale(.92); }
+
+/* ───── DRAG HANDLE ───── */
+.drag-handle {
+  height: 20px; background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  cursor: ns-resize; flex-shrink: 0;
+  border-top: 1px solid var(--warm);
+}
+.drag-handle-bar { width: 36px; height: 4px; background: var(--warm); border-radius: 2px; }
+
+/* ───── LIST PANE ───── */
+.list-pane {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--cream); padding: 0 0 12px;
+}
+.list-pane::-webkit-scrollbar { width: 4px; }
+.list-pane::-webkit-scrollbar-thumb { background: var(--warm); border-radius: 2px; }
+
+.list-header {
+  padding: 10px 16px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 5; background: var(--cream);
+}
+.list-count { font-size: 13px; color: var(--gray); font-weight: 600; }
+.list-count strong { color: var(--brown); }
+.list-sort {
+  font-size: 12px; color: var(--gray);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* ─ Place Cards ─ */
+.place-card {
+  background: var(--white); border-radius: var(--radius);
+  margin: 0 12px 10px; display: flex; overflow: hidden;
+  box-shadow: var(--shadow); cursor: pointer;
+  transition: transform .18s, box-shadow .18s;
+  border: 2px solid transparent; position: relative;
+}
+.place-card.active { border-color: var(--green); box-shadow: 0 4px 20px rgba(46,139,110,.2); }
+.place-card:active { transform: scale(.98); }
+
+.card-thumb {
+  width: 96px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; position: relative;
+}
+.card-badge {
+  position: absolute; top: 6px; left: 6px;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+}
+.badge-free { background: var(--orange); color: #fff; }
+.badge-cheap { background: var(--yellow); color: var(--brown); }
+
+.card-info { flex: 1; padding: 11px 12px 11px 8px; min-width: 0; }
+.card-cat { font-size: 11px; color: var(--gray); font-weight: 600; margin-bottom: 3px; }
+.card-name {
+  font-size: 15px; font-weight: 700; line-height: 1.3; margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-desc {
+  font-size: 12px; color: var(--gray); line-height: 1.5; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.card-price-tag { font-size: 13px; font-weight: 700; color: var(--green); }
+.card-price-tag.free { color: var(--orange); }
+.card-meta-row { display: flex; align-items: center; gap: 6px; }
+.card-rating { font-size: 11px; color: var(--gray); }
+.card-save-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: none; border: none; font-size: 17px; cursor: pointer;
+}
+
+/* AD */
+.ad-card {
+  margin: 0 12px 10px; background: linear-gradient(90deg,#f5f5f5,#ebebeb);
+  border-radius: var(--radius); height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #bbb; border: 1px dashed #ddd; font-style: italic;
+}
+
+/* ───── BOTTOM DETAIL SHEET ───── */
+.detail-sheet {
+  position: fixed; left: 0; right: 0; bottom: var(--bottom-h); z-index: 300;
+  background: var(--white); border-radius: 24px 24px 0 0;
+  box-shadow: var(--shadow-up);
+  transform: translateY(100%);
+  transition: transform .32s cubic-bezier(.32,0,.16,1);
+  max-height: 78vh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.detail-sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  padding: 12px; display: flex; justify-content: center;
+  position: sticky; top: 0; background: var(--white); z-index: 1;
+}
+.sheet-handle-bar { width: 40px; height: 4px; background: var(--warm); border-radius: 2px; }
+.sheet-close {
+  position: absolute; top: 10px; right: 16px;
+  background: var(--gray-light); border: none; border-radius: 50%;
+  width: 30px; height: 30px; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.sheet-content { padding: 0 20px 28px; }
+.sheet-thumb {
+  width: 100%; height: 150px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 72px; margin-bottom: 14px;
+}
+.sheet-badge {
+  display: inline-block; font-size: 12px; font-weight: 700;
+  padding: 4px 12px; border-radius: 20px; margin-bottom: 8px;
+}
+.sheet-name { font-size: 22px; font-weight: 700; margin-bottom: 5px; }
+.sheet-location { font-size: 13px; color: var(--gray); margin-bottom: 12px; }
+.sheet-desc { font-size: 14px; line-height: 1.75; color: var(--brown); margin-bottom: 16px; }
+.sheet-info-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 18px;
+}
+.sheet-info-item { background: var(--gray-light); border-radius: 12px; padding: 12px; }
+.sheet-info-label { font-size: 11px; color: var(--gray); font-weight: 600; margin-bottom: 3px; }
+.sheet-info-value { font-size: 13px; font-weight: 700; }
+.sheet-actions { display: flex; gap: 10px; }
+.sheet-btn {
+  flex: 1; padding: 14px; border-radius: 14px; border: none;
+  font-family: 'Noto Sans KR', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: transform .15s;
+}
+.sheet-btn:active { transform: scale(.97); }
+.sheet-btn.primary { background: var(--green); color: #fff; }
+.sheet-btn.secondary { background: var(--gray-light); color: var(--brown); }
+
+/* ───── BOTTOM NAV ───── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+  height: var(--bottom-h); background: var(--white);
+  border-top: 1px solid var(--warm); display: flex;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer; border: none; background: none;
+  color: var(--gray); font-family: 'Noto Sans KR', sans-serif;
+  transition: color .15s;
+}
+.nav-item.active { color: var(--green); }
+.nav-item span { font-size: 20px; }
+.nav-item small { font-size: 10px; font-weight: 600; }
+
+/* ───── DESKTOP ───── */
+@media (min-width: 768px) {
+  .main { flex-direction: row; }
+  .map-pane { flex: 0 0 55%; height: 100%; }
+  .drag-handle { display: none; }
+  .list-pane { flex: 1; border-left: 1px solid var(--warm); }
+  .detail-sheet { left: 55%; border-radius: 24px 24px 0 0; }
+}
+
+/* ───── TOAST ───── */
+.toast {
+  position: fixed; bottom: calc(var(--bottom-h) + 16px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--brown); color: #fff;
+  font-size: 13px; padding: 10px 20px; border-radius: 50px;
+  z-index: 500; opacity: 0; transition: all .3s;
+  pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ───── OVERLAY ───── */
+.overlay {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(0,0,0,.3); opacity: 0;
+  pointer-events: none; transition: opacity .3s;
+}
+.overlay.show { opacity: 1; pointer-events: all; }
+
+/* 로딩 */
+.map-loading {
+  position: absolute; inset: 0; z-index: 5;
+  background: #d8e8e0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px;
+  font-size: 14px; color: var(--green); font-weight: 600;
+}
+.map-loading .spin {
+  font-size: 32px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <div class="logo-mark">아이<span>랑</span></div>
+  <div class="search-bar">
+    <span>🔍</span>
+    <input type="text" placeholder="지역, 장소 검색..." id="searchInput">
+  </div>
+  <button class="my-loc-btn" onclick="moveToMyLocation()">📡</button>
+</nav>
+
+<!-- FILTER -->
+<div class="filter-row">
+  <button class="chip active" onclick="filterChip(this,'all')">✨ 전체</button>
+  <button class="chip" onclick="filterChip(this,'free')">🆓 완전 무료</button>
+  <button class="chip" onclick="filterChip(this,'park')">🌿 공원·자연</button>
+  <button class="chip" onclick="filterChip(this,'museum')">🖼 박물관</button>
+  <button class="chip" onclick="filterChip(this,'kids')">🎡 키즈시설</button>
+  <button class="chip" onclick="filterChip(this,'water')">🏊 물놀이</button>
+  <button class="chip" onclick="filterChip(this,'farm')">🐮 농장·동물</button>
+  <button class="chip" onclick="filterChip(this,'train')">🚂 체험</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- MAP -->
+  <div class="map-pane">
+    <div class="map-loading" id="mapLoading">
+      <div class="spin">🗺</div>
+      <div>지도 불러오는 중...</div>
+    </div>
+    <div id="kakaoMap"></div>
+    <div class="map-controls">
+      <button class="map-ctrl-btn" onclick="moveToMyLocation()">📡</button>
+      <button class="map-ctrl-btn" onclick="mapZoomIn()">＋</button>
+      <button class="map-ctrl-btn" onclick="mapZoomOut()">－</button>
+    </div>
+  </div>
+
+  <!-- DRAG HANDLE -->
+  <div class="drag-handle"><div class="drag-handle-bar"></div></div>
+
+  <!-- LIST -->
+  <div class="list-pane" id="listPane">
+    <div class="list-header">
+      <div class="list-count"><strong id="countNum">0</strong>개 장소</div>
+      <button class="list-sort">거리순 ▾</button>
+    </div>
+    <div id="placeList"></div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeDetail()"></div>
+
+<!-- DETAIL SHEET -->
+<div class="detail-sheet" id="detailSheet">
+  <div class="sheet-handle">
+    <div class="sheet-handle-bar"></div>
+    <button class="sheet-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="sheet-content" id="sheetContent"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active"><span>🗺</span><small>지도</small></button>
+  <button class="nav-item" onclick="showSaved()"><span>🔖</span><small>저장</small></button>
+  <button class="nav-item" onclick="showToast('✏️ 장소 제보 기능 준비중!')"><span>📍</span><small>제보</small></button>
+  <button class="nav-item" onclick="showToast('👤 로그인 기능 준비중!')"><span>👤</span><small>MY</small></button>
+</nav>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+// 장소 데이터 (lat/lng 실제 좌표)
+// ─────────────────────────────────────────
+const PLACES = [
+  // ── 서울 ──
+  { id:1, name:'서울 어린이대공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌳', bg:'linear-gradient(135deg,#c8e6c9,#81c784)', desc:'입장 완전 무료! 드넓은 잔디밭과 동물원, 놀이시설까지 모두 무료. 지하철 접근도 편리해요.', location:'서울 광진구 능동로 216', transport:'🚇 어린이대공원역 1번출구', hours:'연중무휴 05:00~22:00', age:'전 연령', rating:'4.8', reviews:342, lat:37.5483, lng:127.0782 },
+  { id:2, name:'국립중앙박물관 어린이관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🏛', bg:'linear-gradient(135deg,#bbdefb,#64b5f6)', desc:'선사시대부터 조선까지 놀이로 배우는 체험형 어린이 전시. 사전 예약 필수, 완전 무료!', location:'서울 용산구 서빙고로 137', transport:'🚇 이촌역 2번출구 도보 5분', hours:'화~일 10:00~18:00', age:'3~12세', rating:'4.9', reviews:218, lat:37.5240, lng:126.9804 },
+  { id:3, name:'한강공원 뚝섬 물놀이장', cat:'water', catLabel:'🏊 물놀이', free:true, price:'무료 (여름)', emoji:'💦', bg:'linear-gradient(135deg,#b2ebf2,#4dd0e1)', desc:'7~8월 한정 무료 개방! 뚝섬 한강공원에서 시원하게 물놀이. 조기 마감 잦으니 오전 일찍 가세요.', location:'서울 광진구 강변북로 139', transport:'🚇 뚝섬역 2번출구 도보 10분', hours:'7~8월 10:00~18:00', age:'전 연령', rating:'4.9', reviews:507, lat:37.5307, lng:127.0668 },
+  { id:4, name:'서울숲 놀이터', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌲', bg:'linear-gradient(135deg,#dcedc8,#aed581)', desc:'드넓은 서울숲 안에 있는 대형 무료 놀이터. 자연 속에서 뛰어놀기 완벽한 환경!', location:'서울 성동구 뚝섬로 273', transport:'🚇 서울숲역 3번출구 도보 5분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:389, lat:37.5440, lng:127.0373 },
+  { id:5, name:'국립민속박물관 어린이관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🏺', bg:'linear-gradient(135deg,#ffe0b2,#ffcc80)', desc:'경복궁 안에 위치한 무료 어린이박물관. 전통문화를 놀이로 배울 수 있어요.', location:'서울 종로구 삼청로 37', transport:'🚇 경복궁역 3번출구 도보 10분', hours:'수~월 09:00~18:00', age:'3~12세', rating:'4.6', reviews:183, lat:37.5797, lng:126.9768 },
+  { id:6, name:'보라매공원 무료 수영장', cat:'water', catLabel:'🏊 물놀이', free:true, price:'무료 (여름)', emoji:'🏊', bg:'linear-gradient(135deg,#80deea,#26c6da)', desc:'여름철 무료 개방하는 야외 수영장. 넓은 잔디밭과 놀이터도 함께 있어요.', location:'서울 동작구 보라매로 87', transport:'🚇 보라매역 3번출구 도보 5분', hours:'7~8월 10:00~18:00', age:'전 연령', rating:'4.5', reviews:298, lat:37.4938, lng:126.9189 },
+  { id:7, name:'북서울꿈의숲', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌳', bg:'linear-gradient(135deg,#a5d6a7,#66bb6a)', desc:'북한산 자락에 위치한 대형 도시공원. 전망대, 놀이터, 분수광장까지 모두 무료!', location:'서울 강북구 월계로 173', transport:'🚇 창동역 1번출구 도보 20분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:421, lat:37.6388, lng:127.0477 },
+  { id:8, name:'서울시립과학관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 2천·어린이 1천원', emoji:'🔬', bg:'linear-gradient(135deg,#ce93d8,#ab47bc)', desc:'과학을 놀이로! 체험형 전시가 가득한 과학관. 입장료가 저렴해서 부담 없어요.', location:'서울 노원구 한글비석로 160', transport:'🚇 당고개역 4번출구 도보 5분', hours:'화~일 09:00~18:00', age:'5세 이상', rating:'4.5', reviews:267, lat:37.6617, lng:127.0797 },
+  { id:9, name:'월드컵공원 하늘공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌾', bg:'linear-gradient(135deg,#fff9c4,#f9a825)', desc:'억새밭이 유명한 하늘공원. 가을엔 은빛 억새, 봄엔 유채꽃. 사계절 아이와 함께하기 좋아요.', location:'서울 마포구 하늘공원로 108', transport:'🚇 월드컵경기장역 1번출구 도보 20분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:312, lat:37.5700, lng:126.8932 },
+  { id:10, name:'강동 그린웨이 가족캠핑장', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'1만~2만원대', emoji:'⛺', bg:'linear-gradient(135deg,#c8e6c9,#388e3c)', desc:'서울 안에 있는 저렴한 가족 캠핑장. 한강변에서 자연을 느끼며 캠핑 가능!', location:'서울 강동구 고덕로 234', transport:'🚇 고덕역 1번출구 도보 15분', hours:'연중무휴 (예약 필수)', age:'전 연령', rating:'4.4', reviews:156, lat:37.5506, lng:127.1593 },
+  { id:11, name:'국립어린이청소년도서관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'📚', bg:'linear-gradient(135deg,#bbdefb,#1565c0)', desc:'아이들을 위한 무료 국립도서관. 다양한 체험 프로그램과 넓은 열람실 제공.', location:'서울 강남구 테헤란로 114', transport:'🚇 선릉역 1번출구 도보 5분', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:134, lat:37.5083, lng:127.0594 },
+  { id:12, name:'올림픽공원 몽촌토성', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🏰', bg:'linear-gradient(135deg,#ffccbc,#ff7043)', desc:'백제 시대 토성이 있는 역사공원. 넓은 잔디밭에서 자유롭게 뛰어놀 수 있어요.', location:'서울 송파구 올림픽로 424', transport:'🚇 몽촌토성역 1번출구 도보 5분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:287, lat:37.5192, lng:127.1218 },
+
+  // ── 경기 ──
+  { id:13, name:'의왕 철도박물관', cat:'train', catLabel:'🚂 기차·체험', free:false, price:'어른 2천·어린이 1천원', emoji:'🚂', bg:'linear-gradient(135deg,#d7ccc8,#a1887f)', desc:'실제 증기기관차와 KTX 시뮬레이터 체험! 초저렴한 입장료에 야외 공간도 넓어요.', location:'경기 의왕시 철도박물관로 142', transport:'🚇 의왕역 도보 10분', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.4', reviews:201, lat:37.3447, lng:126.9697 },
+  { id:14, name:'수원 삼성어린이박물관', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'성인 5천·아이 4천원', emoji:'🎪', bg:'linear-gradient(135deg,#fff9c4,#fff176)', desc:'2시간 알차게 놀 수 있는 체험형 키즈 시설. 주중 할인 많아서 평일 방문 시 가성비 최고!', location:'경기 수원시 영통구 삼성로 129', transport:'🚗 주차 가능', hours:'화~일 10:00~18:00', age:'2~10세', rating:'4.5', reviews:156, lat:37.2636, lng:127.0286 },
+  { id:15, name:'과천 서울대공원', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 2천·어린이 1천원', emoji:'🦁', bg:'linear-gradient(135deg,#c8e6c9,#2e7d32)', desc:'동물원+식물원+놀이공원 모두! 입장료가 저렴하고 하루 종일 놀 수 있어요.', location:'경기 과천시 대공원광장로 102', transport:'🚇 대공원역 2번출구 도보 5분', hours:'매일 09:00~19:00', age:'전 연령', rating:'4.7', reviews:892, lat:37.4274, lng:127.0125 },
+  { id:16, name:'국립과천과학관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 4천·어린이 2천원', emoji:'🚀', bg:'linear-gradient(135deg,#b3e5fc,#0288d1)', desc:'우주, 자연사, 첨단기술 체험 전시. 국내 최대 과학관으로 하루 종일 즐길 수 있어요.', location:'경기 과천시 상하벌로 110', transport:'🚇 대공원역 1번출구 도보 10분', hours:'화~일 09:30~17:30', age:'전 연령', rating:'4.8', reviews:673, lat:37.4296, lng:126.9991 },
+  { id:17, name:'용인 에버랜드 자연농원', cat:'farm', catLabel:'🐮 농장·동물', free:false, price:'1만원대', emoji:'🌻', bg:'linear-gradient(135deg,#fff59d,#f9a825)', desc:'에버랜드 인근 자연농원. 딸기·방울토마토 수확 체험, 동물 먹이주기 등 저렴하게 즐길 수 있어요.', location:'경기 용인시 처인구 포곡읍', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.3', reviews:167, lat:37.2996, lng:127.2014 },
+  { id:18, name:'광명 기아챌린저스필드 외야잔디', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (비경기일)', free:true, price:'무료', emoji:'⚾', bg:'linear-gradient(135deg,#ef9a9a,#c62828)', desc:'비경기일에 외야 잔디가 무료 개방. 아이들이 마음껏 뛰어놀 수 있는 특별한 경험!', location:'경기 광명시 광명로 58', transport:'🚇 광명사거리역 2번출구 버스', hours:'비경기일 10:00~17:00', age:'전 연령', rating:'4.4', reviews:98, lat:37.4789, lng:126.8640 },
+  { id:19, name:'양평 들꽃수목원', cat:'farm', catLabel:'🐮 농장·동물', free:false, price:'어른 7천·어린이 5천원', emoji:'🌸', bg:'linear-gradient(135deg,#f8bbd0,#e91e63)', desc:'한강변에 위치한 수목원. 계절별 꽃 축제, 동물 먹이주기, 곤충체험 등 가득해요.', location:'경기 양평군 양평읍 강변로 2', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:234, lat:37.4870, lng:127.4975 },
+  { id:20, name:'가평 아침고요수목원', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 1만·어린이 7천원', emoji:'🌺', bg:'linear-gradient(135deg,#f48fb1,#ad1457)', desc:'사계절 아름다운 수목원. 봄 튤립, 여름 연꽃, 가을 단풍, 겨울 빛 축제까지!', location:'경기 가평군 상면 수목원로 432', transport:'🚗 자차 권장', hours:'매일 08:30~18:00', age:'전 연령', rating:'4.6', reviews:543, lat:37.7874, lng:127.5156 },
+  { id:21, name:'파주 임진각 평화누리공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🕊', bg:'linear-gradient(135deg,#b0bec5,#546e7a)', desc:'통일을 테마로 한 대형 공원. 바람개비 언덕, 대형 놀이터, 넓은 잔디밭 모두 무료!', location:'경기 파주시 문산읍 임진각로 148', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.4', reviews:312, lat:37.8884, lng:126.7398 },
+  { id:22, name:'고양 행주산성 역사공원', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 1천·어린이 700원', emoji:'🏯', bg:'linear-gradient(135deg,#ffe082,#ff8f00)', desc:'임진왜란 3대 대첩지. 한강이 보이는 아름다운 전망과 함께 역사 교육도 할 수 있어요.', location:'경기 고양시 덕양구 행주내길 102', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.3', reviews:178, lat:37.6072, lng:126.8227 },
+  { id:23, name:'남양주 다산생태공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🦆', bg:'linear-gradient(135deg,#a5d6a7,#1b5e20)', desc:'한강변 생태공원. 습지, 철새, 텃밭 체험 등 자연 생태를 가까이서 느낄 수 있어요.', location:'경기 남양주시 조안면 다산로', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.4', reviews:145, lat:37.5889, lng:127.2287 },
+
+  // ── 인천 ──
+  { id:24, name:'인천 어린이과학관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 3천·어린이 2천원', emoji:'🔭', bg:'linear-gradient(135deg,#80cbc4,#00695c)', desc:'우주·로봇·공룡 등 다양한 과학 체험 전시. 저렴한 입장료로 하루 종일 즐길 수 있어요.', location:'인천 서구 로봇랜드로 58', transport:'🚗 자차 권장', hours:'화~일 09:30~17:30', age:'전 연령', rating:'4.5', reviews:234, lat:37.5684, lng:126.6392 },
+  { id:25, name:'인천대공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌲', bg:'linear-gradient(135deg,#c5e1a5,#558b2f)', desc:'인천 최대 도시공원. 무료 동물원, 식물원, 수목원까지! 하루 종일 놀 수 있는 가성비 최강 공원.', location:'인천 남동구 장수동 산79', transport:'🚇 인천대공원역 1번출구', hours:'매일 05:00~22:00', age:'전 연령', rating:'4.6', reviews:421, lat:37.4388, lng:126.7419 },
+  { id:26, name:'소래습지생태공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🦩', bg:'linear-gradient(135deg,#b2dfdb,#00796b)', desc:'옛 염전을 생태공원으로 조성. 철새 관찰, 갯벌 체험, 자전거 타기 모두 무료!', location:'인천 남동구 논현동 680', transport:'🚇 소래포구역 1번출구 도보 10분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:287, lat:37.4249, lng:126.7328 },
+
+  // ── 부산 ──
+  { id:27, name:'부산 어린이대공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌳', bg:'linear-gradient(135deg,#a5d6a7,#388e3c)', desc:'부산 도심 속 무료 공원. 동물원, 놀이시설, 야외공연장까지 모두 무료로 즐길 수 있어요.', location:'부산 부산진구 어린이공원로 157', transport:'🚇 가야역 2번출구 도보 15분', hours:'매일 05:00~22:00', age:'전 연령', rating:'4.5', reviews:312, lat:35.1547, lng:129.0013 },
+  { id:28, name:'국립해양박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🐳', bg:'linear-gradient(135deg,#81d4fa,#0277bd)', desc:'바다와 해양 생물을 주제로 한 국립박물관. 어린이 전용 체험관이 있고 완전 무료!', location:'부산 영도구 해양로 301번길 45', transport:'🚌 한국해양대 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:489, lat:35.0713, lng:129.0697 },
+  { id:29, name:'삼락생태공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌸', bg:'linear-gradient(135deg,#f8bbd0,#c2185b)', desc:'낙동강변 대형 생태공원. 봄엔 유채꽃, 여름엔 물놀이장, 자전거길까지 무료!', location:'부산 사상구 삼락동 6', transport:'🚇 사상역 하차 도보 10분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:267, lat:35.1653, lng:128.9917 },
+  { id:30, name:'부산 과학교육원 천문대', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 2천·어린이 1천원', emoji:'🌟', bg:'linear-gradient(135deg,#311b92,#7c4dff)', desc:'별자리 관측 체험! 밤하늘의 별을 망원경으로 직접 볼 수 있어요. 아이들이 정말 좋아해요.', location:'부산 남구 유엔평화로 76번길 1', transport:'🚌 부산과학교육원 하차', hours:'화~일 09:00~22:00', age:'5세 이상', rating:'4.6', reviews:198, lat:35.1298, lng:129.0844 },
+
+  // ── 대구 ──
+  { id:31, name:'대구 이월드', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'자유이용권 3만원대', emoji:'🎢', bg:'linear-gradient(135deg,#ff8a65,#bf360c)', desc:'앞산 자락에 위치한 테마파크. 가족 이용권이 저렴하고 야경이 특히 아름다워요.', location:'대구 달서구 두류공원로 200', transport:'🚌 이월드 하차', hours:'매일 11:00~22:00', age:'전 연령', rating:'4.3', reviews:423, lat:35.8557, lng:128.5638 },
+  { id:32, name:'대구수목원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌺', bg:'linear-gradient(135deg,#f48fb1,#880e4f)', desc:'쓰레기 매립지를 수목원으로! 무료 식물원과 곤충생태관까지 즐길 수 있어요.', location:'대구 달서구 화암로 342', transport:'🚌 대구수목원 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:267, lat:35.8241, lng:128.5318 },
+  { id:33, name:'국립대구박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🏺', bg:'linear-gradient(135deg,#ffe082,#e65100)', desc:'선사시대~근현대 대구경북의 역사와 문화. 어린이 체험실이 있고 완전 무료!', location:'대구 수성구 청호로 321', transport:'🚌 국립대구박물관 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:189, lat:35.8320, lng:128.6417 },
+
+  // ── 광주 ──
+  { id:34, name:'광주 국립광주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🎨', bg:'linear-gradient(135deg,#b39ddb,#4527a0)', desc:'호남 문화의 보고! 어린이 체험관에서 도자기 만들기, 탁본 체험 등 다양한 활동 가능.', location:'광주 북구 하서로 110', transport:'🚌 국립광주박물관 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:156, lat:35.1811, lng:126.9098 },
+  { id:35, name:'광주패밀리랜드', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'자유이용권 2만원대', emoji:'🎡', bg:'linear-gradient(135deg,#ff8a65,#d84315)', desc:'무등산 자락의 소규모 놀이공원. 서울보다 훨씬 저렴하고 대기 없이 즐길 수 있어요.', location:'광주 북구 우치로 677', transport:'🚌 패밀리랜드 하차', hours:'화~일 10:00~18:00', age:'전 연령', rating:'4.2', reviews:234, lat:35.2156, lng:126.9488 },
+
+  // ── 대전 ──
+  { id:36, name:'국립중앙과학관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료 (일부 유료)', emoji:'🔬', bg:'linear-gradient(135deg,#80deea,#006064)', desc:'과학기술의 모든 것! 공룡화석, 우주탐험, 자연사 전시까지 완전 무료. 하루 종일 즐겨요.', location:'대전 유성구 대덕대로 481', transport:'🚌 중앙과학관 하차', hours:'화~일 09:30~17:30', age:'전 연령', rating:'4.8', reviews:567, lat:36.3714, lng:127.3744 },
+  { id:37, name:'한밭수목원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌿', bg:'linear-gradient(135deg,#a5d6a7,#2e7d32)', desc:'도심 속 무료 수목원. 사계절 아름다운 꽃과 나무를 감상하며 산책할 수 있어요.', location:'대전 서구 둔산대로 169', transport:'🚌 정부청사 하차 도보 10분', hours:'매일 05:00~22:00', age:'전 연령', rating:'4.6', reviews:312, lat:36.3525, lng:127.3800 },
+
+  // ── 경남/경북 ──
+  { id:38, name:'경주 국립경주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'👑', bg:'linear-gradient(135deg,#ffe082,#f57f17)', desc:'신라 천년의 역사! 어린이박물관, 야외 문화재 산책로까지 모두 무료. 역사 교육 최고!', location:'경북 경주시 일정로 186', transport:'🚌 국립경주박물관 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.8', reviews:678, lat:35.8381, lng:129.2256 },
+  { id:39, name:'창녕 우포늪 생태관', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🐸', bg:'linear-gradient(135deg,#a5d6a7,#1b5e20)', desc:'국내 최대 자연 늪지. 철새, 수달, 고라니를 볼 수 있는 생태 보고. 생태관 무료 입장!', location:'경남 창녕군 유어면 우포늪길', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:234, lat:35.5507, lng:128.4121 },
+  { id:40, name:'통영 케이블카 (어린이 무료)', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 1만5천·어린이 무료', emoji:'🚡', bg:'linear-gradient(135deg,#80cbc4,#004d40)', desc:'한려수도 절경을 케이블카로! 만 6세 이하 어린이 무료 탑승. 정상 전망대 뷰가 멋져요.', location:'경남 통영시 발개로 205', transport:'🚗 자차 권장', hours:'매일 09:30~18:00', age:'전 연령', rating:'4.7', reviews:892, lat:34.8469, lng:128.4219 },
+
+  // ── 전라 ──
+  { id:41, name:'순천만 국가정원', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 8천·어린이 4천원', emoji:'🌿', bg:'linear-gradient(135deg,#c8e6c9,#1b5e20)', desc:'세계 5대 연안습지! 갈대밭, 습지 생태, 대형 정원까지. 아이들이 자연을 배울 수 있는 곳.', location:'전남 순천시 국가정원1호길 47', transport:'🚗 자차 권장', hours:'매일 08:00~21:00 (계절별 상이)', age:'전 연령', rating:'4.8', reviews:1023, lat:34.9062, lng:127.5088 },
+  { id:42, name:'전주 한옥마을', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료 (체험 별도)', emoji:'🏘', bg:'linear-gradient(135deg,#ffe082,#e65100)', desc:'700여 채 한옥이 모인 마을. 전통 문화 체험, 한복 체험 등 다양한 볼거리. 기본 관람 무료!', location:'전북 전주시 완산구 기린대로 99', transport:'🚌 한옥마을 하차', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:1234, lat:35.8150, lng:127.1530 },
+
+  // ── 충청 ──
+  { id:43, name:'천안 독립기념관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🇰🇷', bg:'linear-gradient(135deg,#ef9a9a,#b71c1c)', desc:'우리나라 독립운동 역사. 넓은 야외 공원과 7개 전시관 모두 무료! 역사 교육에 최고.', location:'충남 천안시 동남구 목천읍 삼방로 95', transport:'🚗 자차 권장', hours:'화~일 09:30~18:00', age:'전 연령', rating:'4.7', reviews:567, lat:36.7756, lng:127.2020 },
+  { id:44, name:'청주 국립청주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🏺', bg:'linear-gradient(135deg,#ce93d8,#6a1b9a)', desc:'청동기~조선시대 충청의 역사와 문화. 야외 전시물 산책, 어린이 체험실 모두 무료!', location:'충북 청주시 상당구 명암로 143', transport:'🚌 국립청주박물관 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:178, lat:36.6582, lng:127.5175 },
+  { id:45, name:'충주 중앙탑 사적공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🗼', bg:'linear-gradient(135deg,#b0bec5,#37474f)', desc:'남한강변 신라시대 탑 공원. 강변 산책, 잔디밭 피크닉, 자전거 대여까지 즐길 수 있어요.', location:'충북 충주시 가금면 용전리 280', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.3', reviews:145, lat:37.0107, lng:127.9299 },
+
+  // ── 강원 ──
+  { id:46, name:'강릉 경포 해변공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🏖', bg:'linear-gradient(135deg,#80deea,#00acc1)', desc:'동해 최고 해변! 드넓은 백사장에서 물놀이, 모래놀이 무료. 여름 성수기 추천!', location:'강원 강릉시 경포로 365', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.8', reviews:1123, lat:37.7974, lng:128.9057 },
+  { id:47, name:'춘천 애니메이션박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 7천·어린이 5천원', emoji:'🎬', bg:'linear-gradient(135deg,#ffcc80,#ef6c00)', desc:'국내 최초 애니메이션 박물관. 로봇·만화 체험관 포함. 가성비 좋은 아이 체험 공간!', location:'강원 춘천시 서면 박사로 854', transport:'🚗 자차 권장', hours:'화~일 10:00~18:00', age:'전 연령', rating:'4.4', reviews:312, lat:37.8427, lng:127.7201 },
+  { id:48, name:'설악산 국립공원 소공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (입장료 별도)', emoji:'⛰', bg:'linear-gradient(135deg,#b0bec5,#263238)', desc:'설악산 입구 소공원은 무료 입장! 계곡물에 발 담그고 자연 속 힐링하기 좋아요.', location:'강원 속초시 설악산로 833', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:567, lat:38.1195, lng:128.4657 },
+
+  // ── 제주 ──
+  { id:49, name:'제주 국립제주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🌋', bg:'linear-gradient(135deg,#80cbc4,#004d40)', desc:'제주의 역사와 자연을 한눈에. 어린이 체험실과 야외 정원 모두 무료!', location:'제주 제주시 일주동로 17', transport:'🚗 자차 권장', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:234, lat:33.4948, lng:126.5389 },
+  { id:50, name:'제주 협재해변', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (주차 유료)', emoji:'🏝', bg:'linear-gradient(135deg,#80deea,#0097a7)', desc:'에메랄드빛 바다와 하얀 모래! 제주 최고 해변 중 하나. 아이들 물놀이에 최적!', location:'제주 제주시 한림읍 협재리', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.9', reviews:1567, lat:33.3942, lng:126.2395 },
+];
+
+// ─────────────────────────────────────────
+// 카카오맵 초기화
+// ─────────────────────────────────────────
+let map = null;
+let markers = [];
+let activeId = null;
+let savedIds = new Set();
+let currentFilter = 'all';
+let infowindows = [];
+
+function initMap() {
+  const container = document.getElementById('kakaoMap');
+  const options = {
+    center: new kakao.maps.LatLng(36.5, 127.8),
+    level: 13,
+  };
+  map = new kakao.maps.Map(container, options);
+  document.getElementById('mapLoading').style.display = 'none';
+  renderMarkers(PLACES);
+  renderList();
+}
+
+// ─────────────────────────────────────────
+// 마커 렌더링
+// ─────────────────────────────────────────
+function renderMarkers(places) {
+  // 기존 마커 제거
+  markers.forEach(m => m.setMap(null));
+  infowindows.forEach(iw => iw.close());
+  markers = []; infowindows = [];
+
+  places.forEach(p => {
+    const pos = new kakao.maps.LatLng(p.lat, p.lng);
+    const isActive = activeId === p.id;
+
+    // 커스텀 오버레이 (말풍선 핀)
+    const color = p.free ? '#f07040' : '#2e8b6e';
+    const content = `
+      <div style="
+        background:${isActive ? '#f5c542' : color};
+        color:${isActive ? '#4a3728' : '#fff'};
+        font-size:11px; font-weight:700;
+        padding:5px 10px; border-radius:20px;
+        box-shadow:0 2px 8px rgba(0,0,0,.25);
+        white-space:nowrap; cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;
+        transform:${isActive ? 'scale(1.15)' : 'scale(1)'};
+        transition: transform .2s;
+        position:relative;
+      " onclick="selectPlace(${p.id})">
+        ${p.name.length > 7 ? p.name.slice(0,7)+'…' : p.name}
+        <div style="
+          position:absolute; bottom:-6px; left:50%;
+          transform:translateX(-50%);
+          border:6px solid transparent;
+          border-top-color:${isActive ? '#f5c542' : color};
+          border-bottom:0;
+        "></div>
+      </div>`;
+
+    const overlay = new kakao.maps.CustomOverlay({
+      position: pos,
+      content: content,
+      yAnchor: 1.35,
+    });
+    overlay.setMap(map);
+    markers.push(overlay);
+  });
+}
+
+// ─────────────────────────────────────────
+// 리스트 렌더링
+// ─────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  return PLACES.filter(p => {
+    const matchFilter = currentFilter === 'all' || p.cat === currentFilter ||
+      (currentFilter === 'free' && p.free);
+    const matchSearch = !q || p.name.includes(q) || p.location.includes(q) || p.desc.includes(q);
+    return matchFilter && matchSearch;
+  });
+}
+
+function renderList() {
+  const list = getFiltered();
+  document.getElementById('countNum').textContent = list.length;
+  const el = document.getElementById('placeList');
+  let html = '';
+
+  list.forEach((p, i) => {
+    const saved = savedIds.has(p.id);
+    const active = activeId === p.id;
+    if (i === 2) html += `<div class="ad-card">📣 광고 영역 (애드센스)</div>`;
+    html += `
+    <div class="place-card ${active ? 'active' : ''}" onclick="selectPlace(${p.id})" id="card-${p.id}">
+      <div class="card-thumb" style="background:${p.bg}">
+        ${p.emoji}
+        <div class="card-badge ${p.free ? 'badge-free' : 'badge-cheap'}">${p.free ? '🆓 무료' : '💰 가성비'}</div>
+      </div>
+      <div class="card-info">
+        <div class="card-cat">${p.catLabel}</div>
+        <div class="card-name">${p.name}</div>
+        <div class="card-desc">${p.desc}</div>
+        <div class="card-footer">
+          <div class="card-price-tag ${p.free ? 'free' : ''}">${p.price}</div>
+          <div class="card-meta-row">
+            <div class="card-rating">⭐ ${p.rating} (${p.reviews})</div>
+          </div>
+        </div>
+      </div>
+      <button class="card-save-btn" onclick="toggleSave(event,${p.id})">${saved ? '❤️' : '🤍'}</button>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+  if (map) renderMarkers(list);
+}
+
+// ─────────────────────────────────────────
+// 장소 선택
+// ─────────────────────────────────────────
+function selectPlace(id) {
+  activeId = id;
+  renderList();
+
+  const p = PLACES.find(x => x.id === id);
+  if (!p) return;
+
+  // 지도 이동
+  if (map) {
+    map.panTo(new kakao.maps.LatLng(p.lat, p.lng));
+    setTimeout(() => map.setLevel(5), 300);
+  }
+
+  // 바텀 시트
+  document.getElementById('sheetContent').innerHTML = `
+    <div class="sheet-thumb" style="background:${p.bg}">${p.emoji}</div>
+    <div class="sheet-badge ${p.free ? 'badge-free' : 'badge-cheap'}">${p.free ? '🆓 완전 무료' : '💰 가성비'}</div>
+    <div class="sheet-name">${p.name}</div>
+    <div class="sheet-location">📍 ${p.location}</div>
+    <div class="sheet-desc">${p.desc}</div>
+    <div class="sheet-info-grid">
+      <div class="sheet-info-item">
+        <div class="sheet-info-label">💰 이용요금</div>
+        <div class="sheet-info-value">${p.price}</div>
+      </div>
+      <div class="sheet-info-item">
+        <div class="sheet-info-label">🕐 운영시간</div>
+        <div class="sheet-info-value">${p.hours}</div>
+      </div>
+      <div class="sheet-info-item">
+        <div class="sheet-info-label">🚇 교통편</div>
+        <div class="sheet-info-value">${p.transport}</div>
+      </div>
+      <div class="sheet-info-item">
+        <div class="sheet-info-label">👶 추천연령</div>
+        <div class="sheet-info-value">${p.age}</div>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="sheet-btn secondary" onclick="toggleSave(null,${p.id})">
+        ${savedIds.has(p.id) ? '❤️ 저장됨' : '🤍 저장하기'}
+      </button>
+      <button class="sheet-btn primary" onclick="openKakaoNavi(${p.lat},${p.lng},'${p.name}')">
+        🗺 길찾기
+      </button>
+    </div>
+  `;
+  document.getElementById('detailSheet').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+
+  const card = document.getElementById('card-'+id);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDetail() {
+  document.getElementById('detailSheet').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  activeId = null;
+  renderList();
+}
+
+// ─────────────────────────────────────────
+// 길찾기 (카카오맵 앱 연동)
+// ─────────────────────────────────────────
+function openKakaoNavi(lat, lng, name) {
+  const url = `https://map.kakao.com/link/to/${encodeURIComponent(name)},${lat},${lng}`;
+  window.open(url, '_blank');
+}
+
+// ─────────────────────────────────────────
+// 필터 / 검색
+// ─────────────────────────────────────────
+function filterChip(el, filter) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = filter;
+  activeId = null;
+  renderList();
+}
+
+document.getElementById('searchInput').addEventListener('input', () => {
+  activeId = null;
+  renderList();
+});
+
+// ─────────────────────────────────────────
+// 저장 / 내위치 / 줌
+// ─────────────────────────────────────────
+function toggleSave(e, id) {
+  if (e) e.stopPropagation();
+  if (savedIds.has(id)) { savedIds.delete(id); showToast('저장 취소했어요'); }
+  else { savedIds.add(id); showToast('❤️ 저장했어요!'); }
+  renderList();
+  if (activeId === id) selectPlace(id);
+}
+
+function showSaved() {
+  if (savedIds.size === 0) { showToast('아직 저장한 장소가 없어요'); return; }
+  showToast(`❤️ 저장된 장소 ${savedIds.size}개`);
+}
+
+function moveToMyLocation() {
+  if (!navigator.geolocation) { showToast('위치 권한이 필요해요'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const latlng = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+    if (map) { map.panTo(latlng); map.setLevel(6); }
+    showToast('📡 내 위치로 이동했어요!');
+  }, () => showToast('위치 권한을 허용해주세요'));
+}
+
+function mapZoomIn()  { if (map) map.setLevel(map.getLevel() - 1); }
+function mapZoomOut() { if (map) map.setLevel(map.getLevel() + 1); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ─────────────────────────────────────────
+// 카카오맵 로드 완료 후 초기화
+// ─────────────────────────────────────────
+kakao.maps.load(initMap);
+</script>
+</body>
+</html>
