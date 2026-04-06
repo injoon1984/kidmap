@@ -578,6 +578,12 @@ function initMap() {
   };
   map = new kakao.maps.Map(container, options);
   document.getElementById('mapLoading').style.display = 'none';
+
+  // 지도 이동/줌 끝난 후에만 마커 업데이트 (idle = 움직임 완전히 멈춘 후)
+  kakao.maps.event.addListener(map, 'idle', () => {
+    renderMarkers(getFiltered());
+  });
+
   renderMarkers(PLACES);
   renderList();
 }
@@ -590,19 +596,29 @@ function renderMarkers(places) {
   markers = [];
   if (!map) return;
 
-  places.forEach(p => {
-    const markerColor = p.free ? 'orange' : 'green';
-    const markerImg = new kakao.maps.MarkerImage(
-      `https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png`,
-      new kakao.maps.Size(24, 35)
-    );
+  const level = map.getLevel();
 
+  // 줌 레벨에 따라 마커 표시 제한
+  // level 1~5: 동네 단위 → 전체 표시
+  // level 6~9: 시/구 단위 → 지도 범위 안만
+  // level 10~: 전국 단위 → 마커 숨김
+  if (level >= 10) return;
+
+  const bounds = map.getBounds();
+  const visible = places.filter(p => {
+    const pos = new kakao.maps.LatLng(p.lat, p.lng);
+    return bounds.contain(pos);
+  });
+
+  // 너무 많으면 최대 30개만
+  const toShow = visible.slice(0, 30);
+
+  toShow.forEach(p => {
     const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(p.lat, p.lng),
       map: map,
       title: p.name,
     });
-
     kakao.maps.event.addListener(marker, 'click', () => selectPlace(p.id));
     markers.push(marker);
   });
