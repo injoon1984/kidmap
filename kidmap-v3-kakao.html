@@ -578,12 +578,6 @@ function initMap() {
   };
   map = new kakao.maps.Map(container, options);
   document.getElementById('mapLoading').style.display = 'none';
-
-  // 지도 이동/줌 시 마커 다시 그리기
-  kakao.maps.event.addListener(map, 'idle', () => {
-    renderMarkers(getFiltered());
-  });
-
   renderMarkers(PLACES);
   renderList();
 }
@@ -592,50 +586,21 @@ function initMap() {
 // 마커 렌더링
 // ─────────────────────────────────────────
 function renderMarkers(places) {
-  // 기존 마커 제거
   markers.forEach(m => m.setMap(null));
-  infowindows.forEach(iw => iw.close());
-  markers = []; infowindows = [];
-
+  markers = [];
   if (!map) return;
 
-  // 현재 지도 범위 안에 있는 장소만 표시
-  const bounds = map.getBounds();
-  const visible = places.filter(p => {
-    const pos = new kakao.maps.LatLng(p.lat, p.lng);
-    return bounds.contain(pos);
-  });
-
-  visible.forEach(p => {
-    const pos = new kakao.maps.LatLng(p.lat, p.lng);
+  places.forEach(p => {
     const isActive = activeId === p.id;
-
     const color = p.free ? '#f07040' : '#2e8b6e';
-    const content = `
-      <div style="
-        background:${isActive ? '#f5c542' : color};
-        color:${isActive ? '#4a3728' : '#fff'};
-        font-size:11px; font-weight:700;
-        padding:5px 10px; border-radius:20px;
-        box-shadow:0 2px 8px rgba(0,0,0,.25);
-        white-space:nowrap; cursor:pointer;
-        font-family:'Noto Sans KR',sans-serif;
-        transform:${isActive ? 'scale(1.15)' : 'scale(1)'};
-        transition: transform .2s;
-        position:relative;
-      " onclick="selectPlace(${p.id})">
-        ${p.name.length > 7 ? p.name.slice(0,7)+'…' : p.name}
-        <div style="
-          position:absolute; bottom:-6px; left:50%;
-          transform:translateX(-50%);
-          border:6px solid transparent;
-          border-top-color:${isActive ? '#f5c542' : color};
-          border-bottom:0;
-        "></div>
-      </div>`;
+    const bg = isActive ? '#f5c542' : color;
+    const fg = isActive ? '#4a3728' : '#fff';
+    const label = p.name.length > 7 ? p.name.slice(0,7)+'…' : p.name;
+
+    const content = `<div onclick="selectPlace(${p.id})" style="background:${bg};color:${fg};font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap;cursor:pointer;font-family:sans-serif;position:relative;">${label}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:${bg};border-bottom:0;"></div></div>`;
 
     const overlay = new kakao.maps.CustomOverlay({
-      position: pos,
+      position: new kakao.maps.LatLng(p.lat, p.lng),
       content: content,
       yAnchor: 1.35,
     });
@@ -838,12 +803,7 @@ function initDragHandle() {
     h = Math.max(min, Math.min(max, h));
     mapPane.style.height = h + 'px';
     mapPane.style.flexBasis = h + 'px';
-    // 카카오맵에 크기 변경 알리기 (딜레이 없이 즉시 + 약간 후 한번 더)
-    if (map) {
-      kakao.maps.event.trigger(map, 'resize');
-      setTimeout(() => { if (map) kakao.maps.event.trigger(map, 'resize'); }, 50);
-      setTimeout(() => { if (map) kakao.maps.event.trigger(map, 'resize'); }, 200);
-    }
+    if (map) kakao.maps.event.trigger(map, 'resize');
   }
 
   // 마우스
