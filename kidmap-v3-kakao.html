@@ -591,21 +591,20 @@ function renderMarkers(places) {
   if (!map) return;
 
   places.forEach(p => {
-    const isActive = activeId === p.id;
-    const color = p.free ? '#f07040' : '#2e8b6e';
-    const bg = isActive ? '#f5c542' : color;
-    const fg = isActive ? '#4a3728' : '#fff';
-    const label = p.name.length > 7 ? p.name.slice(0,7)+'…' : p.name;
+    const markerColor = p.free ? 'orange' : 'green';
+    const markerImg = new kakao.maps.MarkerImage(
+      `https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png`,
+      new kakao.maps.Size(24, 35)
+    );
 
-    const content = `<div onclick="selectPlace(${p.id})" style="background:${bg};color:${fg};font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;box-shadow:0 2px 6px rgba(0,0,0,.2);white-space:nowrap;cursor:pointer;font-family:sans-serif;position:relative;">${label}<div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:${bg};border-bottom:0;"></div></div>`;
-
-    const overlay = new kakao.maps.CustomOverlay({
+    const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(p.lat, p.lng),
-      content: content,
-      yAnchor: 1.35,
+      map: map,
+      title: p.name,
     });
-    overlay.setMap(map);
-    markers.push(overlay);
+
+    kakao.maps.event.addListener(marker, 'click', () => selectPlace(p.id));
+    markers.push(marker);
   });
 }
 
