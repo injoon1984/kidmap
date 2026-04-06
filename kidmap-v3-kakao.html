@@ -578,6 +578,12 @@ function initMap() {
   };
   map = new kakao.maps.Map(container, options);
   document.getElementById('mapLoading').style.display = 'none';
+
+  // 지도 이동/줌 시 마커 다시 그리기
+  kakao.maps.event.addListener(map, 'idle', () => {
+    renderMarkers(getFiltered());
+  });
+
   renderMarkers(PLACES);
   renderList();
 }
@@ -591,11 +597,19 @@ function renderMarkers(places) {
   infowindows.forEach(iw => iw.close());
   markers = []; infowindows = [];
 
-  places.forEach(p => {
+  if (!map) return;
+
+  // 현재 지도 범위 안에 있는 장소만 표시
+  const bounds = map.getBounds();
+  const visible = places.filter(p => {
+    const pos = new kakao.maps.LatLng(p.lat, p.lng);
+    return bounds.contain(pos);
+  });
+
+  visible.forEach(p => {
     const pos = new kakao.maps.LatLng(p.lat, p.lng);
     const isActive = activeId === p.id;
 
-    // 커스텀 오버레이 (말풍선 핀)
     const color = p.free ? '#f07040' : '#2e8b6e';
     const content = `
       <div style="
@@ -824,7 +838,12 @@ function initDragHandle() {
     h = Math.max(min, Math.min(max, h));
     mapPane.style.height = h + 'px';
     mapPane.style.flexBasis = h + 'px';
-    if (map) kakao.maps.event.trigger(map, 'resize');
+    // 카카오맵에 크기 변경 알리기 (딜레이 없이 즉시 + 약간 후 한번 더)
+    if (map) {
+      kakao.maps.event.trigger(map, 'resize');
+      setTimeout(() => { if (map) kakao.maps.event.trigger(map, 'resize'); }, 50);
+      setTimeout(() => { if (map) kakao.maps.event.trigger(map, 'resize'); }, 200);
+    }
   }
 
   // 마우스
