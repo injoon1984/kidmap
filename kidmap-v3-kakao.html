@@ -107,8 +107,9 @@ body { font-family: 'Noto Sans KR', sans-serif; color: var(--brown); -webkit-tap
 
 /* ───── MAP PANE ───── */
 .map-pane {
-  flex: 0 0 45vh;
+  flex-shrink: 0;
   position: relative; overflow: hidden;
+  min-height: 80px;
 }
 #kakaoMap { width: 100%; height: 100%; }
 
@@ -128,12 +129,17 @@ body { font-family: 'Noto Sans KR', sans-serif; color: var(--brown); -webkit-tap
 
 /* ───── DRAG HANDLE ───── */
 .drag-handle {
-  height: 20px; background: var(--white);
+  height: 28px; background: var(--white);
   display: flex; align-items: center; justify-content: center;
   cursor: ns-resize; flex-shrink: 0;
   border-top: 1px solid var(--warm);
+  border-bottom: 1px solid var(--warm);
+  user-select: none; touch-action: none;
+  gap: 8px;
 }
 .drag-handle-bar { width: 36px; height: 4px; background: var(--warm); border-radius: 2px; }
+.drag-handle:hover .drag-handle-bar { background: var(--green); }
+.drag-handle-hint { font-size: 11px; color: var(--gray); }
 
 /* ───── LIST PANE ───── */
 .list-pane {
@@ -366,7 +372,10 @@ body { font-family: 'Noto Sans KR', sans-serif; color: var(--brown); -webkit-tap
   </div>
 
   <!-- DRAG HANDLE -->
-  <div class="drag-handle"><div class="drag-handle-bar"></div></div>
+  <div class="drag-handle" id="dragHandle">
+    <div class="drag-handle-bar"></div>
+    <span class="drag-handle-hint">위아래 드래그</span>
+  </div>
 
   <!-- LIST -->
   <div class="list-pane" id="listPane">
@@ -479,6 +488,76 @@ const PLACES = [
   // ── 제주 ──
   { id:49, name:'제주 국립제주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🌋', bg:'linear-gradient(135deg,#80cbc4,#004d40)', desc:'제주의 역사와 자연을 한눈에. 어린이 체험실과 야외 정원 모두 무료!', location:'제주 제주시 일주동로 17', transport:'🚗 자차 권장', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:234, lat:33.4948, lng:126.5389 },
   { id:50, name:'제주 협재해변', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (주차 유료)', emoji:'🏝', bg:'linear-gradient(135deg,#80deea,#0097a7)', desc:'에메랄드빛 바다와 하얀 모래! 제주 최고 해변 중 하나. 아이들 물놀이에 최적!', location:'제주 제주시 한림읍 협재리', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.9', reviews:1567, lat:33.3942, lng:126.2395 },
+
+  // ── 서울 추가 ──
+  { id:51, name:'노원 우주학교', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 3천·어린이 2천원', emoji:'🚀', bg:'linear-gradient(135deg,#1a237e,#7c4dff)', desc:'별자리·우주 체험이 가득한 천문·과학관. 플라네타리움 돔 영상이 아이들에게 인기 최고!', location:'서울 노원구 동일로 205길 13', transport:'🚇 당고개역 4번출구 도보 5분', hours:'화~일 09:00~18:00', age:'5세 이상', rating:'4.6', reviews:198, lat:37.6560, lng:127.0810 },
+  { id:52, name:'서울 암사동 유적', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 500원·어린이 300원', emoji:'🏺', bg:'linear-gradient(135deg,#d7ccc8,#795548)', desc:'신석기시대 움집 복원 야외 전시. 입장료가 거의 무료 수준! 역사 교육에 딱이에요.', location:'서울 강동구 올림픽로 875', transport:'🚇 암사역 1번출구 도보 10분', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.4', reviews:167, lat:37.5526, lng:127.1308 },
+  { id:53, name:'남산공원 N서울타워', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (타워 내부 유료)', emoji:'🗼', bg:'linear-gradient(135deg,#ffccbc,#ff5722)', desc:'남산 정상까지 무료 산책! 케이블카 대신 걸어 올라가면 무료. 서울 전경을 한눈에 볼 수 있어요.', location:'서울 용산구 남산공원길 105', transport:'🚌 남산순환버스 이용', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:892, lat:37.5512, lng:126.9882 },
+  { id:54, name:'뚝섬 한강공원 자전거', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'자전거 대여 시간당 3천원', emoji:'🚴', bg:'linear-gradient(135deg,#c8e6c9,#43a047)', desc:'한강변 자전거길에서 가족 라이딩! 아이용 자전거·유아용 시트 대여 가능. 경치가 최고예요.', location:'서울 광진구 강변북로 139', transport:'🚇 뚝섬역 2번출구 도보 5분', hours:'매일 09:00~21:00', age:'전 연령', rating:'4.7', reviews:445, lat:37.5313, lng:127.0653 },
+  { id:55, name:'서울식물원', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 5천·어린이 2천원', emoji:'🌱', bg:'linear-gradient(135deg,#a5d6a7,#1b5e20)', desc:'온실과 야외 정원이 아름다운 식물원. 어린이정원에서 자연 생태 체험 프로그램 운영.', location:'서울 강서구 마곡동로 161', transport:'🚇 마곡나루역 3번출구 도보 5분', hours:'화~일 09:30~18:00', age:'전 연령', rating:'4.7', reviews:678, lat:37.5603, lng:126.8317 },
+  { id:56, name:'경의선 숲길 공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌿', bg:'linear-gradient(135deg,#dcedc8,#558b2f)', desc:'옛 철길을 공원으로! 6.3km 산책로를 따라 꽃밭, 놀이터, 카페가 이어져요. 유모차도 편해요.', location:'서울 마포구 와우산로 94', transport:'🚇 홍대입구역 3번출구 도보 5분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:523, lat:37.5567, lng:126.9245 },
+  { id:57, name:'국립한글박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'📖', bg:'linear-gradient(135deg,#bbdefb,#1565c0)', desc:'한글의 역사와 아름다움을 배우는 무료 박물관. 어린이 체험실에서 한글 놀이 가능!', location:'서울 용산구 서빙고로 139', transport:'🚇 이촌역 2번출구 도보 5분', hours:'월~금 09:00~18:00, 토~일 09:00~21:00', age:'전 연령', rating:'4.5', reviews:234, lat:37.5247, lng:126.9795 },
+  { id:58, name:'강서 허준박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 1천원·어린이 500원', emoji:'🌿', bg:'linear-gradient(135deg,#c8e6c9,#2e7d32)', desc:'동의보감의 허준 선생 기념관. 한방 체험, 약초 전시 등 자녀 체험 교육에 좋아요.', location:'서울 강서구 허준로 87', transport:'🚇 가양역 1번출구 도보 10분', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.3', reviews:145, lat:37.5654, lng:126.8460 },
+  { id:59, name:'중랑 캠핑숲', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'1만~2만원대', emoji:'⛺', bg:'linear-gradient(135deg,#a5d6a7,#388e3c)', desc:'서울 도심 속 캠핑! 한강 지류 중랑천변에 위치. 아이들이 뛰어놀기 좋은 잔디밭 넓어요.', location:'서울 중랑구 망우로 228', transport:'🚇 망우역 하차 도보 15분', hours:'연중무휴 (예약 필수)', age:'전 연령', rating:'4.4', reviews:189, lat:37.5970, lng:127.1007 },
+  { id:60, name:'국립고궁박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'👑', bg:'linear-gradient(135deg,#ffe082,#f57f17)', desc:'경복궁 안에 위치한 조선 왕실 문화 박물관. 왕의 의복, 가마 등 화려한 유물을 무료로 관람!', location:'서울 종로구 효자로 12', transport:'🚇 경복궁역 5번출구 도보 5분', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:312, lat:37.5779, lng:126.9750 },
+
+  // ── 경기 추가 ──
+  { id:61, name:'용인 한국민속촌', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 2만·어린이 1만5천원', emoji:'🏘', bg:'linear-gradient(135deg,#ffe082,#e65100)', desc:'조선시대 생활을 그대로 재현! 전통 공연, 민속놀이 체험. 아이들 역사 체험 최고 명소.', location:'경기 용인시 기흥구 민속촌로 90', transport:'🚗 자차 권장', hours:'매일 09:30~18:00', age:'전 연령', rating:'4.6', reviews:1234, lat:37.2398, lng:127.1151 },
+  { id:62, name:'수원 화성', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 1천원·어린이 700원', emoji:'🏯', bg:'linear-gradient(135deg,#ffccbc,#bf360c)', desc:'유네스코 세계문화유산! 거의 무료 수준 입장료. 성벽 따라 걷기, 화성어차 탑승 추천.', location:'경기 수원시 장안구 영화동 320', transport:'🚇 수원역 하차 버스 이용', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:892, lat:37.2887, lng:127.0147 },
+  { id:63, name:'안산 화랑유원지', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌊', bg:'linear-gradient(135deg,#b2ebf2,#006064)', desc:'넓은 호수를 중심으로 산책로, 자전거길, 놀이터까지! 가족 피크닉 하기 최적의 무료 공원.', location:'경기 안산시 단원구 화랑로 255', transport:'🚇 안산역 하차 도보 15분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:267, lat:37.3214, lng:126.8310 },
+  { id:64, name:'광명동굴', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 6천·어린이 3천원', emoji:'🦇', bg:'linear-gradient(135deg,#424242,#9e9e9e)', desc:'옛 금속 광산을 테마파크로! 동굴 안 와인 동굴, 황금 폭포 등 신비로운 체험. 여름에 시원해요!', location:'경기 광명시 가학로85번길 142', transport:'🚗 자차 권장', hours:'화~일 10:00~18:00', age:'전 연령', rating:'4.5', reviews:543, lat:37.4432, lng:126.8659 },
+  { id:65, name:'포천 허브아일랜드', cat:'farm', catLabel:'🐮 농장·동물', free:false, price:'어른 9천·어린이 7천원', emoji:'🌺', bg:'linear-gradient(135deg,#f48fb1,#880e4f)', desc:'허브 향기 가득한 테마 식물원. 겨울 빛 축제가 특히 유명! 아이들 감성 나들이에 딱이에요.', location:'경기 포천시 신북면 청신로947번길 35', transport:'🚗 자차 권장', hours:'매일 10:00~21:00', age:'전 연령', rating:'4.5', reviews:678, lat:37.9524, lng:127.2001 },
+  { id:66, name:'이천 도자기 체험마을', cat:'train', catLabel:'🚂 기차·체험', free:false, price:'체험 1만원대', emoji:'🏺', bg:'linear-gradient(135deg,#d7ccc8,#4e342e)', desc:'직접 도자기를 만드는 체험! 아이들이 흙을 만지며 집중력, 창의력을 키울 수 있어요.', location:'경기 이천시 신둔면 도자예술로 56', transport:'🚗 자차 권장', hours:'매일 10:00~18:00', age:'5세 이상', rating:'4.4', reviews:312, lat:37.3122, lng:127.4652 },
+  { id:67, name:'시흥 갯골생태공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🦩', bg:'linear-gradient(135deg,#b2dfdb,#004d40)', desc:'수도권 유일 내만 갯골! 출렁다리, 염전 체험, 자전거길까지 모두 무료. 자연 생태 교육 최고!', location:'경기 시흥시 동서로 287', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:289, lat:37.3696, lng:126.7432 },
+  { id:68, name:'하남 미사리 조정경기장', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🚣', bg:'linear-gradient(135deg,#80deea,#00838f)', desc:'한강변 대형 공원. 넓은 잔디밭, 자전거길, 물놀이 시설까지! 가족 나들이 명소.', location:'경기 하남시 미사대로 520', transport:'🚇 미사역 하차 도보 20분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:356, lat:37.5556, lng:127.2000 },
+  { id:69, name:'성남 율동공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌊', bg:'linear-gradient(135deg,#b3e5fc,#01579b)', desc:'분당 율동 저수지를 품은 아름다운 공원. 수상 자전거, 산책로, 잔디광장 모두 무료!', location:'경기 성남시 분당구 분당로 61', transport:'🚇 이매역 하차 버스 이용', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:412, lat:37.3697, lng:127.1270 },
+  { id:70, name:'구리 한강시민공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌸', bg:'linear-gradient(135deg,#f8bbd0,#880e4f)', desc:'봄엔 유채꽃 천지! 한강변 드넓은 꽃밭에서 사진 찍고 뛰어놀기 완벽. 코스모스도 유명해요.', location:'경기 구리시 토평동 852', transport:'🚇 구리역 하차 버스 이용', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:523, lat:37.5967, lng:127.1478 },
+
+  // ── 인천 추가 ──
+  { id:71, name:'인천 월미도 문화의거리', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'놀이기구 개별 구매', emoji:'🎡', bg:'linear-gradient(135deg,#ff8a65,#bf360c)', desc:'월미도 테마파크와 바다 산책로! 바이킹, 디스코팡팡 등 추억의 놀이기구. 가성비 나들이!', location:'인천 중구 월미문화로 36', transport:'🚇 인천역 하차 도보 15분', hours:'매일 10:00~22:00', age:'전 연령', rating:'4.2', reviews:456, lat:37.4773, lng:126.5986 },
+  { id:72, name:'강화 고인돌공원', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🗿', bg:'linear-gradient(135deg,#cfd8dc,#455a64)', desc:'유네스코 세계유산 고인돌이 가득! 청동기 시대 역사를 야외에서 무료로 배울 수 있어요.', location:'인천 강화군 하점면 강화대로 994', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.4', reviews:198, lat:37.7456, lng:126.4197 },
+  { id:73, name:'인천 자유공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🗽', bg:'linear-gradient(135deg,#b0bec5,#37474f)', desc:'한국 최초의 서양식 공원! 인천 차이나타운 인근. 맥아더 장군 동상, 바다 전망까지.', location:'인천 중구 자유공원로 19', transport:'🚇 인천역 하차 도보 10분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.3', reviews:234, lat:37.4767, lng:126.6207 },
+
+  // ── 부산 추가 ──
+  { id:74, name:'부산 송도해수욕장', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🏖', bg:'linear-gradient(135deg,#80deea,#006064)', desc:'부산 최초의 공설해수욕장! 케이블카, 구름산책로 등 볼거리도 많고 물놀이도 무료.', location:'부산 서구 암남동 137', transport:'🚌 송도해수욕장 하차', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:678, lat:35.0766, lng:129.0199 },
+  { id:75, name:'부산 어촌민속관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🐟', bg:'linear-gradient(135deg,#b3e5fc,#0277bd)', desc:'어촌 생활과 바다 문화를 배우는 무료 박물관. 수산물 관련 체험도 할 수 있어요.', location:'부산 서구 송도해변로 140', transport:'🚌 송도해수욕장 하차', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.3', reviews:145, lat:35.0793, lng:129.0178 },
+  { id:76, name:'금정산성 산책로', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'⛰', bg:'linear-gradient(135deg,#c8e6c9,#1b5e20)', desc:'부산 최고 명산 산책로. 아이와 함께 가볍게 걷기 좋은 코스 있어요. 산성마을 막걸리도 유명!', location:'부산 금정구 산성동 산 1', transport:'🚇 범어사역 하차 버스 이용', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:312, lat:35.2618, lng:129.0546 },
+  { id:77, name:'부산 아쿠아리움', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'어른 2만5천·어린이 1만8천원', emoji:'🐠', bg:'linear-gradient(135deg,#1a237e,#4fc3f7)', desc:'해운대 바닷속을 그대로! 상어, 가오리 등 다양한 해양 생물을 가까이서 볼 수 있어요.', location:'부산 해운대구 해운대해변로 266', transport:'🚇 해운대역 하차 도보 10분', hours:'매일 10:00~20:00', age:'전 연령', rating:'4.5', reviews:892, lat:35.1584, lng:129.1603 },
+
+  // ── 대전/충청 추가 ──
+  { id:78, name:'대전 엑스포과학공원', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'입장 무료, 놀이기구 별도', emoji:'🎆', bg:'linear-gradient(135deg,#ce93d8,#4a148c)', desc:'93년 세계박람회 개최지! 입장 무료, 과학 전시관 체험. 한빛탑 야경이 아름다워요.', location:'대전 유성구 대덕대로 480', transport:'🚌 엑스포과학공원 하차', hours:'화~일 10:00~22:00', age:'전 연령', rating:'4.4', reviews:456, lat:36.3736, lng:127.3869 },
+  { id:79, name:'공주 국립공주박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'👑', bg:'linear-gradient(135deg,#ffe082,#e65100)', desc:'백제 무령왕릉 유물이 가득! 금관, 금귀걸이 등 화려한 백제 문화를 무료로 관람해요.', location:'충남 공주시 관광단지길 34', transport:'🚗 자차 권장', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:289, lat:36.4588, lng:127.1217 },
+  { id:80, name:'부여 국립부여박물관', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🏺', bg:'linear-gradient(135deg,#ffcc80,#e65100)', desc:'백제 문화의 정수! 백제 금동대향로 등 국보급 유물을 무료로. 야외 정원 산책도 좋아요.', location:'충남 부여군 부여읍 금성로 5', transport:'🚗 자차 권장', hours:'화~일 09:00~18:00', age:'전 연령', rating:'4.6', reviews:234, lat:36.2726, lng:126.9096 },
+
+  // ── 강원 추가 ──
+  { id:81, name:'속초 조양동 선사유적지', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'🗿', bg:'linear-gradient(135deg,#cfd8dc,#37474f)', desc:'동해안 선사 문화를 배울 수 있는 야외 유적지. 아담하지만 무료이고 공원으로도 이용 가능.', location:'강원 속초시 조양동 1600', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.2', reviews:98, lat:38.1879, lng:128.5901 },
+  { id:82, name:'철원 한탄강 주상절리길', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 2천·어린이 1천원', emoji:'🌋', bg:'linear-gradient(135deg,#795548,#3e2723)', desc:'용암이 만든 신비로운 주상절리 협곡! 출렁다리와 잔도를 걸으며 자연의 신비를 느껴요.', location:'강원 철원군 동송읍 태봉로 1825', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:567, lat:38.1618, lng:127.3021 },
+  { id:83, name:'정선 레일바이크', cat:'train', catLabel:'🚂 기차·체험', free:false, price:'2인 2만5천·4인 3만5천원', emoji:'🚲', bg:'linear-gradient(135deg,#a5d6a7,#1b5e20)', desc:'폐선 철로를 달리는 레일바이크! 구절리~아우라지 구간 경치가 환상적. 가족 추억 만들기 최고!', location:'강원 정선군 여량면 노추산로 745', transport:'🚗 자차 권장', hours:'매일 09:00~17:00', age:'전 연령', rating:'4.7', reviews:789, lat:37.4011, lng:128.7459 },
+
+  // ── 전라 추가 ──
+  { id:84, name:'담양 메타세쿼이아 길', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 2천·어린이 1천원', emoji:'🌲', bg:'linear-gradient(135deg,#a5d6a7,#2e7d32)', desc:'영화 속 한 장면 같은 메타세쿼이아 가로수길! 가을 단풍, 봄 신록 모두 아름다워요.', location:'전남 담양군 담양읍 메타세쿼이아로 12', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.8', reviews:1234, lat:35.3396, lng:126.9879 },
+  { id:85, name:'여수 이순신광장', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'⚓', bg:'linear-gradient(135deg,#b3e5fc,#01579b)', desc:'이순신 장군 동상과 거북선이 있는 광장. 여수 낭만포차 거리 인근. 야경이 특히 아름다워요.', location:'전남 여수시 중앙동 2-19', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.6', reviews:678, lat:34.7380, lng:127.7430 },
+  { id:86, name:'광양 매화마을', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료 (주차 유료)', emoji:'🌸', bg:'linear-gradient(135deg,#fce4ec,#c2185b)', desc:'3월이면 매화꽃이 만개! 섬진강변 매화 향기 속 산책. 아이들 사진 찍기 최고 명소.', location:'전남 광양시 다압면 지막1길 55', transport:'🚗 자차 권장', hours:'연중무휴 24시간 (매화 시즌 3월)', age:'전 연령', rating:'4.7', reviews:892, lat:35.0662, lng:127.6878 },
+
+  // ── 경남/경북 추가 ──
+  { id:87, name:'안동 하회마을', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 5천·어린이 2500원', emoji:'🎭', bg:'linear-gradient(135deg,#ffe082,#bf360c)', desc:'유네스코 세계문화유산! 하회탈춤 공연, 전통 가옥 관람. 진짜 살아있는 역사 문화 마을.', location:'경북 안동시 풍천면 하회리 287', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.8', reviews:1023, lat:36.5350, lng:128.5180 },
+  { id:88, name:'경주 첨성대', cat:'museum', catLabel:'🖼 박물관·전시', free:true, price:'무료', emoji:'⭐', bg:'linear-gradient(135deg,#ffe082,#f57f17)', desc:'신라 천문대로 야간 조명이 아름다워요. 주변 월성, 계림 모두 무료. 밤 산책 코스로 최고!', location:'경북 경주시 인왕동 839-1', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:1123, lat:35.8349, lng:129.2190 },
+  { id:89, name:'거제 포로수용소유적공원', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 7천·어린이 4천원', emoji:'🪖', bg:'linear-gradient(135deg,#b0bec5,#37474f)', desc:'6.25 전쟁 포로수용소를 재현. 역사 교육과 체험이 동시에! 밀리터리 테마로 아이들이 좋아해요.', location:'경남 거제시 계룡로 61', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:567, lat:34.8664, lng:128.6214 },
+  { id:90, name:'합천 해인사', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 3천·어린이 1500원', emoji:'🏯', bg:'linear-gradient(135deg,#ffcc80,#e65100)', desc:'팔만대장경이 있는 천년 사찰! 가야산 단풍이 절경. 아이들에게 불교 문화도 자연스럽게 교육.', location:'경남 합천군 가야면 해인사길 122', transport:'🚗 자차 권장', hours:'매일 08:30~18:00', age:'전 연령', rating:'4.7', reviews:678, lat:35.7995, lng:128.1045 },
+
+  // ── 제주 추가 ──
+  { id:91, name:'제주 한라수목원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌿', bg:'linear-gradient(135deg,#a5d6a7,#1b5e20)', desc:'한라산 자락 무료 수목원. 제주 자생식물과 동물 관찰. 아이들 자연 학습에 딱이에요!', location:'제주 제주시 수목원길 72', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.5', reviews:312, lat:33.4764, lng:126.4902 },
+  { id:92, name:'제주 성산일출봉', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 5천·어린이 2500원', emoji:'🌋', bg:'linear-gradient(135deg,#80cbc4,#004d40)', desc:'유네스코 세계자연유산! 분화구까지 트레킹. 아이와 함께 오르는 제주 최고 명소.', location:'제주 서귀포시 성산읍 일출로 284-12', transport:'🚗 자차 권장', hours:'매일 07:00~20:00', age:'전 연령', rating:'4.9', reviews:2341, lat:33.4589, lng:126.9426 },
+  { id:93, name:'제주 비자림', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 3천·어린이 1500원', emoji:'🌲', bg:'linear-gradient(135deg,#c8e6c9,#2e7d32)', desc:'천년 비자나무 숲! 피톤치드 가득한 숲길 산책. 아이들 면역력 높이는 삼림욕 최고 명소.', location:'제주 제주시 구좌읍 비자숲길 62', transport:'🚗 자차 권장', hours:'매일 09:00~18:00', age:'전 연령', rating:'4.7', reviews:892, lat:33.4895, lng:126.8082 },
+  { id:94, name:'제주 천지연폭포', cat:'park', catLabel:'🌿 공원·자연', free:false, price:'어른 2천·어린이 1천원', emoji:'💧', bg:'linear-gradient(135deg,#b3e5fc,#0277bd)', desc:'서귀포 도심 속 22m 폭포! 야간 조명도 아름다워요. 열대 식물 가득한 계곡 산책도 환상적.', location:'제주 서귀포시 천지동 667-7', transport:'🚗 자차 권장', hours:'매일 09:00~22:00', age:'전 연령', rating:'4.7', reviews:1123, lat:33.2489, lng:126.5613 },
+  { id:95, name:'제주 용두암', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🐉', bg:'linear-gradient(135deg,#b0bec5,#37474f)', desc:'용이 승천하는 모습을 닮은 바위! 제주 공항 근처라 여행 시작/끝에 들르기 좋아요.', location:'제주 제주시 용두암길 15', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.3', reviews:678, lat:33.5168, lng:126.5116 },
+
+  // ── 수도권 키즈카페/실내 ──
+  { id:96, name:'킨텍스 어린이 박람회', cat:'kids', catLabel:'🎡 키즈시설', free:false, price:'행사별 상이 (1만원대)', emoji:'🎪', bg:'linear-gradient(135deg,#ce93d8,#6a1b9a)', desc:'고양 킨텍스에서 열리는 어린이 박람회. 시즌별 다양한 체험 행사. 가성비 좋은 실내 나들이!', location:'경기 고양시 일산서구 킨텍스로 217-60', transport:'🚇 대화역 하차 도보 10분', hours:'행사 기간 10:00~18:00', age:'전 연령', rating:'4.4', reviews:456, lat:37.6715, lng:126.7596 },
+  { id:97, name:'과천 국립현대미술관', cat:'museum', catLabel:'🖼 박물관·전시', free:false, price:'어른 2천·어린이 무료', emoji:'🎨', bg:'linear-gradient(135deg,#b39ddb,#311b92)', desc:'어린이 무료 입장! 현대 미술 작품과 야외 조각공원. 예술 감성을 키워주는 특별한 나들이.', location:'경기 과천시 광명로 313', transport:'🚇 대공원역 2번출구 도보 5분', hours:'화~일 10:00~18:00', age:'전 연령', rating:'4.6', reviews:345, lat:37.4272, lng:127.0075 },
+  { id:98, name:'수원 광교호수공원', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌊', bg:'linear-gradient(135deg,#b3e5fc,#0277bd)', desc:'수원 최고 인기 공원! 2개 호수를 잇는 산책로, 분수 광장, 놀이터 모두 무료. 사계절 아름다워요.', location:'경기 수원시 영통구 광교호수로 99', transport:'🚇 광교중앙역 하차 도보 10분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.8', reviews:892, lat:37.2907, lng:127.0556 },
+  { id:99, name:'인천 송도 센트럴파크', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'🌊', bg:'linear-gradient(135deg,#80deea,#00695c)', desc:'해수가 흐르는 공원 수로에서 보트 타기! 잔디광장, 분수, 산책로 모두 무료. 주말 나들이 최고!', location:'인천 연수구 센트럴로 160', transport:'🚇 인천대입구역 하차 도보 10분', hours:'연중무휴 24시간', age:'전 연령', rating:'4.7', reviews:789, lat:37.3925, lng:126.6424 },
+  { id:100, name:'김포 아라마리나 한강', cat:'park', catLabel:'🌿 공원·자연', free:true, price:'무료', emoji:'⛵', bg:'linear-gradient(135deg,#b3e5fc,#01579b)', desc:'한강과 서해가 만나는 곳! 요트, 카약 구경하며 산책. 넓은 잔디밭과 놀이터 무료.', location:'경기 김포시 고촌읍 아라육로 217', transport:'🚗 자차 권장', hours:'연중무휴 24시간', age:'전 연령', rating:'4.5', reviews:312, lat:37.6035, lng:126.6487 },
 ];
 
 // ─────────────────────────────────────────
@@ -723,9 +802,70 @@ function showToast(msg) {
 }
 
 // ─────────────────────────────────────────
+// 드래그로 지도/리스트 비율 조절
+// ─────────────────────────────────────────
+function initDragHandle() {
+  const handle = document.getElementById('dragHandle');
+  const mapPane = document.querySelector('.map-pane');
+  const main = document.querySelector('.main');
+  let dragging = false;
+  let startY = 0;
+  let startH = 0;
+
+  function getMainTop() {
+    return main.getBoundingClientRect().top;
+  }
+  function getMainH() {
+    return main.getBoundingClientRect().height;
+  }
+  function setMapH(h) {
+    const min = 80;
+    const max = getMainH() - 80;
+    h = Math.max(min, Math.min(max, h));
+    mapPane.style.height = h + 'px';
+    mapPane.style.flexBasis = h + 'px';
+    if (map) kakao.maps.event.trigger(map, 'resize');
+  }
+
+  // 마우스
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startY = e.clientY;
+    startH = mapPane.getBoundingClientRect().height;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    setMapH(startH + (e.clientY - startY));
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+
+  // 터치
+  handle.addEventListener('touchstart', e => {
+    dragging = true;
+    startY = e.touches[0].clientY;
+    startH = mapPane.getBoundingClientRect().height;
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    setMapH(startH + (e.touches[0].clientY - startY));
+  }, { passive: true });
+  document.addEventListener('touchend', () => { dragging = false; });
+
+  // 초기 높이 설정 (38vh)
+  const initH = Math.floor(getMainH() * 0.38);
+  setMapH(initH);
+}
+
+// ─────────────────────────────────────────
 // 카카오맵 로드 완료 후 초기화
 // ─────────────────────────────────────────
-kakao.maps.load(initMap);
+kakao.maps.load(() => { initMap(); initDragHandle(); });
 </script>
 </body>
 </html>
