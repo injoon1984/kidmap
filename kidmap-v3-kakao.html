@@ -6,7 +6,7 @@
 <title>아이랑 어디가지? — 무료·가성비 육아 나들이 지도</title>
 
 <!-- 카카오맵 API -->
-<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=63198357183755e8ca63357d0e604635&libraries=services"></script>
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=63198357183755e8ca63357d0e604635&libraries=services,clusterer"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -565,6 +565,7 @@ const PLACES = [
 // ─────────────────────────────────────────
 let map = null;
 let markers = [];
+let clusterer = null;
 let activeId = null;
 let savedIds = new Set();
 let currentFilter = 'all';
@@ -579,9 +580,49 @@ function initMap() {
   map = new kakao.maps.Map(container, options);
   document.getElementById('mapLoading').style.display = 'none';
 
-  // 지도 이동/줌 끝난 후에만 마커 업데이트 (idle = 움직임 완전히 멈춘 후)
-  kakao.maps.event.addListener(map, 'idle', () => {
-    renderMarkers(getFiltered());
+  // 클러스터러 초기화
+  clusterer = new kakao.maps.MarkerClusterer({
+    map: map,
+    averageCenter: true,
+    minLevel: 6,
+    disableClickZoom: false,
+    styles: [{
+      width: '44px', height: '44px',
+      background: 'rgba(46,139,110,.85)',
+      borderRadius: '50%',
+      color: '#fff',
+      textAlign: 'center',
+      fontWeight: '700',
+      fontSize: '14px',
+      lineHeight: '44px',
+      fontFamily: 'Noto Sans KR, sans-serif',
+      border: '2px solid #fff',
+      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+    }, {
+      width: '52px', height: '52px',
+      background: 'rgba(240,112,64,.85)',
+      borderRadius: '50%',
+      color: '#fff',
+      textAlign: 'center',
+      fontWeight: '700',
+      fontSize: '15px',
+      lineHeight: '52px',
+      fontFamily: 'Noto Sans KR, sans-serif',
+      border: '2px solid #fff',
+      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+    }, {
+      width: '60px', height: '60px',
+      background: 'rgba(245,197,66,.9)',
+      borderRadius: '50%',
+      color: '#4a3728',
+      textAlign: 'center',
+      fontWeight: '700',
+      fontSize: '16px',
+      lineHeight: '60px',
+      fontFamily: 'Noto Sans KR, sans-serif',
+      border: '2px solid #fff',
+      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+    }],
   });
 
   renderMarkers(PLACES);
@@ -592,36 +633,24 @@ function initMap() {
 // 마커 렌더링
 // ─────────────────────────────────────────
 function renderMarkers(places) {
+  // 기존 마커 및 클러스터 제거
   markers.forEach(m => m.setMap(null));
   markers = [];
-  if (!map) return;
+  if (!map || !clusterer) return;
+  clusterer.clear();
 
-  const level = map.getLevel();
-
-  // 줌 레벨에 따라 마커 표시 제한
-  // level 1~5: 동네 단위 → 전체 표시
-  // level 6~9: 시/구 단위 → 지도 범위 안만
-  // level 10~: 전국 단위 → 마커 숨김
-  if (level >= 10) return;
-
-  const bounds = map.getBounds();
-  const visible = places.filter(p => {
-    const pos = new kakao.maps.LatLng(p.lat, p.lng);
-    return bounds.contain(pos);
-  });
-
-  // 너무 많으면 최대 30개만
-  const toShow = visible.slice(0, 30);
-
-  toShow.forEach(p => {
+  // 마커 생성
+  const newMarkers = places.map(p => {
     const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(p.lat, p.lng),
-      map: map,
       title: p.name,
     });
     kakao.maps.event.addListener(marker, 'click', () => selectPlace(p.id));
-    markers.push(marker);
+    return marker;
   });
+
+  markers = newMarkers;
+  clusterer.addMarkers(markers);
 }
 
 // ─────────────────────────────────────────
