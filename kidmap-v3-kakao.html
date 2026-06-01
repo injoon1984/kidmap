@@ -387,7 +387,8 @@ body { font-family: 'Noto Sans KR', sans-serif; color: var(--brown); -webkit-tap
   <div class="map-pane">
     <div class="map-loading" id="mapLoading">
       <div class="spin">🗺</div>
-      <div>지도 불러오는 중...</div>
+      <div style="font-size:13px;">지도 불러오는 중...</div>
+      <div style="font-size:11px;color:#888;margin-top:4px;">잠시만 기다려주세요</div>
     </div>
     <div id="kakaoMap"></div>
     <div class="map-controls">
@@ -590,12 +591,13 @@ const PLACES = [
 // 카카오맵 초기화
 // ─────────────────────────────────────────
 let map = null;
-let markers = [];
+let markers = {}; // id → marker 맵
 let clusterer = null;
 let activeId = null;
 let savedIds = new Set();
 let currentFilter = 'all';
 let infowindows = [];
+let markersCreated = false;
 
 function initMap() {
   const container = document.getElementById('kakaoMap');
@@ -613,70 +615,96 @@ function initMap() {
     minLevel: 6,
     disableClickZoom: false,
     styles: [{
-      width: '44px', height: '44px',
-      background: 'rgba(46,139,110,.85)',
+      width: '40px', height: '40px',
+      background: '#2e8b6e',
+      borderRadius: '50%',
+      color: '#fff',
+      textAlign: 'center',
+      fontWeight: '700',
+      fontSize: '13px',
+      lineHeight: '40px',
+      fontFamily: 'sans-serif',
+      border: '3px solid #fff',
+      boxShadow: '0 2px 10px rgba(0,0,0,.2)',
+    }, {
+      width: '48px', height: '48px',
+      background: '#f07040',
       borderRadius: '50%',
       color: '#fff',
       textAlign: 'center',
       fontWeight: '700',
       fontSize: '14px',
-      lineHeight: '44px',
-      fontFamily: 'Noto Sans KR, sans-serif',
-      border: '2px solid #fff',
-      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+      lineHeight: '48px',
+      fontFamily: 'sans-serif',
+      border: '3px solid #fff',
+      boxShadow: '0 2px 10px rgba(0,0,0,.2)',
     }, {
-      width: '52px', height: '52px',
-      background: 'rgba(240,112,64,.85)',
-      borderRadius: '50%',
-      color: '#fff',
-      textAlign: 'center',
-      fontWeight: '700',
-      fontSize: '15px',
-      lineHeight: '52px',
-      fontFamily: 'Noto Sans KR, sans-serif',
-      border: '2px solid #fff',
-      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
-    }, {
-      width: '60px', height: '60px',
-      background: 'rgba(245,197,66,.9)',
+      width: '56px', height: '56px',
+      background: '#f5c542',
       borderRadius: '50%',
       color: '#4a3728',
       textAlign: 'center',
       fontWeight: '700',
-      fontSize: '16px',
-      lineHeight: '60px',
-      fontFamily: 'Noto Sans KR, sans-serif',
-      border: '2px solid #fff',
-      boxShadow: '0 2px 8px rgba(0,0,0,.25)',
+      fontSize: '15px',
+      lineHeight: '56px',
+      fontFamily: 'sans-serif',
+      border: '3px solid #fff',
+      boxShadow: '0 2px 10px rgba(0,0,0,.2)',
     }],
   });
 
-  renderMarkers(PLACES);
+  createAllMarkers();
   renderList();
 }
 
 // ─────────────────────────────────────────
 // 마커 렌더링
 // ─────────────────────────────────────────
-function renderMarkers(places) {
-  // 기존 마커 및 클러스터 제거
-  markers.forEach(m => m.setMap(null));
-  markers = [];
-  if (!map || !clusterer) return;
-  clusterer.clear();
+function createAllMarkers() {
+  // 최초 1번만 모든 마커 생성
+  if (markersCreated || !map || !clusterer) return;
+  markersCreated = true;
 
-  // 마커 생성
-  const newMarkers = places.map(p => {
+  const allMarkers = PLACES.map(p => {
     const marker = new kakao.maps.Marker({
       position: new kakao.maps.LatLng(p.lat, p.lng),
       title: p.name,
     });
     kakao.maps.event.addListener(marker, 'click', () => selectPlace(p.id));
+    markers[p.id] = marker;
     return marker;
   });
 
-  markers = newMarkers;
-  clusterer.addMarkers(markers);
+  clusterer.addMarkers(allMarkers);
+}
+
+function renderMarkers(places) {
+  if (!map || !clusterer) return;
+
+  // 마커가 아직 없으면 생성
+  if (!markersCreated) {
+    createAllMarkers();
+    return;
+  }
+
+  // 필터된 id 셋
+  const visibleIds = new Set(places.map(p => p.id));
+
+  // 보여야 할 것만 지도에, 나머지는 숨김
+  PLACES.forEach(p => {
+    const m = markers[p.id];
+    if (!m) return;
+    if (visibleIds.has(p.id)) {
+      m.setMap(map);
+    } else {
+      m.setMap(null);
+    }
+  });
+
+  // 클러스터 갱신
+  const visibleMarkers = places.map(p => markers[p.id]).filter(Boolean);
+  clusterer.clear();
+  clusterer.addMarkers(visibleMarkers);
 }
 
 // ─────────────────────────────────────────
@@ -737,10 +765,13 @@ function selectPlace(id) {
   const p = PLACES.find(x => x.id === id);
   if (!p) return;
 
-  // 지도 이동
+  // 지도 부드럽게 이동
   if (map) {
-    map.panTo(new kakao.maps.LatLng(p.lat, p.lng));
-    setTimeout(() => map.setLevel(5), 300);
+    const moveLatLon = new kakao.maps.LatLng(p.lat, p.lng);
+    map.panTo(moveLatLon);
+    if (map.getLevel() > 7) {
+      setTimeout(() => map.setLevel(6, {animate: {duration: 300}}), 400);
+    }
   }
 
   // 바텀 시트
@@ -867,13 +898,18 @@ function initDragHandle() {
   function getMainH() {
     return main.getBoundingClientRect().height;
   }
+  let resizeTimer = null;
   function setMapH(h) {
     const min = 80;
     const max = getMainH() - 80;
     h = Math.max(min, Math.min(max, h));
     mapPane.style.height = h + 'px';
     mapPane.style.flexBasis = h + 'px';
-    if (map) kakao.maps.event.trigger(map, 'resize');
+    // resize는 드래그 끝난 후 한 번만
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (map) kakao.maps.event.trigger(map, 'resize');
+    }, 100);
   }
 
   // 마우스
